@@ -21,6 +21,7 @@ from utils.loaders import (
     apply_defect_filters,
     apply_test_filters,
     dataframe_to_csv_bytes,
+    friendly_load_error,
     init_session_state,
     load_defects,
     load_test_results,
@@ -34,14 +35,9 @@ from utils.metrics import (
     linked_failure_summary,
     test_execution_kpis,
 )
+from utils.ui import configure_page, format_user_error, show_error
 
-st.set_page_config(
-    page_title="QA Analytics Dashboard",
-    page_icon="📊",
-    layout="wide",
-    initial_sidebar_state="expanded",
-)
-
+configure_page("QA Analytics Dashboard", icon="📊")
 init_session_state()
 
 # ---------------------------------------------------------------------------
@@ -53,13 +49,16 @@ st.sidebar.markdown("Upload results or explore with demo data.")
 st.sidebar.header("Data source")
 
 if st.sidebar.button("Load demo data", type="primary", use_container_width=True):
-    tests, defects = generate_sample_data(save_csv=False)
-    st.session_state["tests_df"] = tests
-    st.session_state["defects_df"] = defects
-    st.session_state["data_source"] = "demo"
-    reset_filters()
-    st.sidebar.success(f"Demo loaded: {len(tests):,} runs, {len(defects):,} defects.")
-    st.rerun()
+    try:
+        tests, defects = generate_sample_data(save_csv=False)
+        st.session_state["tests_df"] = tests
+        st.session_state["defects_df"] = defects
+        st.session_state["data_source"] = "demo"
+        reset_filters()
+        st.sidebar.success(f"Demo loaded: {len(tests):,} runs, {len(defects):,} defects.")
+        st.rerun()
+    except Exception as exc:  # noqa: BLE001
+        st.sidebar.error(format_user_error(exc, context="Demo data"))
 
 st.sidebar.caption("Or upload your own files (CSV, JSON, or Excel):")
 
@@ -91,8 +90,8 @@ if st.sidebar.button("Apply uploads", use_container_width=True):
                 for w in warns:
                     st.sidebar.warning(w)
                 st.sidebar.success(f"Loaded {len(tests):,} test rows.")
-            except Exception as exc:  # noqa: BLE001 — show validation to user
-                errors.append(f"Test results: {exc}")
+            except Exception as exc:  # noqa: BLE001
+                errors.append(friendly_load_error(exc, kind="test results"))
 
         if up_defects is not None:
             try:
@@ -103,19 +102,16 @@ if st.sidebar.button("Apply uploads", use_container_width=True):
                     st.sidebar.warning(w)
                 st.sidebar.success(f"Loaded {len(defects):,} defect rows.")
             except Exception as exc:  # noqa: BLE001
-                errors.append(f"Defects: {exc}")
+                errors.append(friendly_load_error(exc, kind="defects"))
 
         for err in errors:
             st.sidebar.error(err)
 
-        if loaded_any and not errors:
+        if loaded_any:
             st.session_state["data_source"] = "upload"
             reset_filters()
-            st.rerun()
-        elif loaded_any:
-            # Partial success still usable
-            st.session_state["data_source"] = "upload"
-            reset_filters()
+            if not errors:
+                st.rerun()
 
 if st.sidebar.button("Clear data", use_container_width=True):
     st.session_state["tests_df"] = None
@@ -124,9 +120,6 @@ if st.sidebar.button("Clear data", use_container_width=True):
     reset_filters()
     st.rerun()
 
-# ---------------------------------------------------------------------------
-# Sidebar — filters (options derived only from loaded data)
-# ---------------------------------------------------------------------------
 render_global_filters()
 
 # ---------------------------------------------------------------------------
@@ -138,24 +131,25 @@ st.caption(
     "works with any website’s results in the standard schema."
 )
 
-tests_raw = st.session_state.get("tests_df")
-defects_raw = st.session_state.get("defects_df")
-has_data = tests_raw is not None or defects_raw is not None
+try:
+    tests_raw = st.session_state.get("tests_df")
+    defects_raw = st.session_state.get("defects_df")
+    has_data = tests_raw is not None or defects_raw is not None
 
-if not has_data:
-    st.markdown("### Welcome")
-    st.info(
-        "No data loaded yet. Use the **sidebar** to get started:\n\n"
-        "1. Click **Load demo data** to explore with realistic sample results, or\n"
-        "2. Upload **test results** and/or **defects** as CSV, JSON, or Excel, "
-        "then click **Apply uploads**.\n\n"
-        "After data is loaded, use the sidebar filters (website, environment, "
-        "browser, date range) and open **Test Execution**, **Defect Metrics**, "
-        "or **Trends** for deeper charts."
-    )
-    with st.expander("Expected file schemas", expanded=False):
-        st.markdown(
-            """
+    if not has_data:
+        st.markdown("### Welcome")
+        st.info(
+            "No data loaded yet. Use the **sidebar** to get started:\n\n"
+            "1. Click **Load demo data** to explore with realistic sample results, or\n"
+            "2. Upload **test results** and/or **defects** as CSV, JSON, or Excel, "
+            "then click **Apply uploads**.\n\n"
+            "After data is loaded, use the sidebar filters (website, environment, "
+            "browser, date range) and open **Test Execution**, **Defect Metrics**, "
+            "or **Trends** for deeper charts."
+        )
+        with st.expander("Expected file schemas", expanded=False):
+            st.markdown(
+                """
 **Test results** (one row per execution):  
 `run_id`, `timestamp`, `website`, `test_suite`, `test_name`, `status`
 (`pass` / `fail` / `skip` / `blocked`), `duration_sec`, `browser`,
@@ -165,91 +159,94 @@ if not has_data:
 `defect_id`, `title`, `severity`, `priority`, `status`
 (`open` / `in-progress` / `closed`), `created_date`, optional `closed_date`,
 `module`
-            """
+                """
+            )
+        st.stop()
+
+    tests = apply_test_filters(tests_raw)
+    defects = apply_defect_filters(defects_raw, tests_raw)
+
+    source = st.session_state.get("data_source") or "loaded"
+    st.caption(
+        f"Source: **{source}** · "
+        f"Showing **{len(tests):,}** test runs and **{len(defects):,}** defects "
+        "after filters."
+    )
+
+    tk = test_execution_kpis(tests)
+    dk = defect_kpis(defects)
+    pass_pct = float(calculate_pass_rate(tests)) if not tests.empty else 0.0
+    flaky_count = len(detect_flaky_tests(tests)) if not tests.empty else 0
+    avg_duration = tk["avg_duration"] if not tests.empty else 0.0
+
+    m1, m2, m3, m4, m5 = st.columns(5)
+    m1.metric("Total runs", f"{tk['total']:,}")
+    m2.metric("Pass %", f"{pass_pct:.1f}%")
+    m3.metric("Avg duration", f"{avg_duration:.1f}s")
+    m4.metric("Flaky tests", f"{flaky_count:,}")
+    m5.metric("Open defects", f"{dk['open']:,}")
+
+    if tests.empty and defects.empty:
+        st.warning(
+            "Nothing matches the current filters. Clear or widen the sidebar filters."
         )
-    st.stop()
+        st.stop()
 
-tests = apply_test_filters(tests_raw)
-defects = apply_defect_filters(defects_raw, tests_raw)
+    left, right = st.columns(2)
+    with left:
+        st.subheader("Test snapshot")
+        if tests.empty:
+            st.caption("No test rows in the current filter set.")
+        else:
+            st.write(
+                {
+                    "Pass": tk["pass"],
+                    "Fail": tk["fail"],
+                    "Skip": tk["skip"],
+                    "Blocked": tk["blocked"],
+                }
+            )
+            st.download_button(
+                "Export filtered tests (CSV)",
+                data=dataframe_to_csv_bytes(tests),
+                file_name="filtered_test_results.csv",
+                mime="text/csv",
+                use_container_width=True,
+            )
 
-source = st.session_state.get("data_source") or "loaded"
-st.caption(
-    f"Source: **{source}** · "
-    f"Showing **{len(tests):,}** test runs and **{len(defects):,}** defects "
-    "after filters."
-)
+    with right:
+        st.subheader("Defect snapshot")
+        if defects.empty:
+            st.caption("No defect rows in the current filter set.")
+        else:
+            st.write(
+                {
+                    "Open": dk["open"],
+                    "In progress": dk["in_progress"],
+                    "Closed": dk["closed"],
+                    "Avg MTTR (days)": dk["avg_resolution_days"],
+                }
+            )
+            st.download_button(
+                "Export filtered defects (CSV)",
+                data=dataframe_to_csv_bytes(defects),
+                file_name="filtered_defects.csv",
+                mime="text/csv",
+                use_container_width=True,
+            )
 
-# --- Summary metric cards ---
-tk = test_execution_kpis(tests)
-dk = defect_kpis(defects)
-pass_pct = calculate_pass_rate(tests) if not tests.empty else 0.0
-flaky_count = len(detect_flaky_tests(tests)) if not tests.empty else 0
-avg_duration = tk["avg_duration"] if not tests.empty else 0.0
-
-m1, m2, m3, m4, m5 = st.columns(5)
-m1.metric("Total runs", f"{tk['total']:,}")
-m2.metric("Pass %", f"{pass_pct:.1f}%")
-m3.metric("Avg duration", f"{avg_duration:.1f}s")
-m4.metric("Flaky tests", f"{flaky_count:,}")
-m5.metric("Open defects", f"{dk['open']:,}")
-
-if tests.empty and (defects is None or defects.empty):
-    st.warning("Nothing matches the current filters. Clear or widen the sidebar filters.")
-    st.stop()
-
-left, right = st.columns(2)
-with left:
-    st.subheader("Test snapshot")
-    if tests.empty:
-        st.caption("No test rows in the current filter set.")
+    st.subheader("Linked failures")
+    linked = linked_failure_summary(
+        tests, defects_raw if defects_raw is not None else defects
+    )
+    if linked.empty:
+        st.caption("No filtered test runs reference a known defect_id.")
     else:
-        st.write(
-            {
-                "Pass": tk["pass"],
-                "Fail": tk["fail"],
-                "Skip": tk["skip"],
-                "Blocked": tk["blocked"],
-            }
-        )
-        st.download_button(
-            "Export filtered tests (CSV)",
-            data=dataframe_to_csv_bytes(tests),
-            file_name="filtered_test_results.csv",
-            mime="text/csv",
-            use_container_width=True,
-        )
+        st.dataframe(linked, use_container_width=True, hide_index=True)
 
-with right:
-    st.subheader("Defect snapshot")
-    if defects.empty:
-        st.caption("No defect rows in the current filter set.")
-    else:
-        st.write(
-            {
-                "Open": dk["open"],
-                "In progress": dk["in_progress"],
-                "Closed": dk["closed"],
-                "Avg MTTR (days)": dk["avg_resolution_days"],
-            }
-        )
-        st.download_button(
-            "Export filtered defects (CSV)",
-            data=dataframe_to_csv_bytes(defects),
-            file_name="filtered_defects.csv",
-            mime="text/csv",
-            use_container_width=True,
-        )
-
-st.subheader("Linked failures")
-linked = linked_failure_summary(
-    tests, defects_raw if defects_raw is not None else defects
-)
-if linked.empty:
-    st.caption("No filtered test runs reference a known defect_id.")
-else:
-    st.dataframe(linked, use_container_width=True, hide_index=True)
-
-st.markdown("---")
-st.markdown(
-    "Next: open **Test Execution**, **Defect Metrics**, or **Trends** in the sidebar."
-)
+    st.markdown("---")
+    st.markdown(
+        "Next: open **Test Execution**, **Defect Metrics**, or **Trends** in the sidebar."
+    )
+except Exception as exc:  # noqa: BLE001
+    show_error(exc, context="Home page")

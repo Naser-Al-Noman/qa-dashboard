@@ -1,4 +1,9 @@
-"""Generate realistic fake QA test and defect data with Faker."""
+"""
+Generate realistic fake QA test and defect data with Faker.
+
+Use ``generate_sample_data()`` to return linked DataFrames and optionally
+persist CSV copies under ``data/samples/``.
+"""
 
 from __future__ import annotations
 

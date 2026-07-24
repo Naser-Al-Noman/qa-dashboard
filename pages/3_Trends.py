@@ -13,44 +13,11 @@ if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
 
 from utils.charts import browser_pass_rate_heatmap, pareto_chart
-from utils.loaders import (
-    apply_defect_filters,
-    apply_test_filters,
-    init_session_state,
-    render_global_filters,
-)
+from utils.loaders import apply_defect_filters, apply_test_filters
 from utils.metrics import get_top_failing_modules
+from utils.ui import bootstrap_page, show_error
 
-st.set_page_config(page_title="Trends", page_icon="📈", layout="wide")
-init_session_state()
-render_global_filters()
-
-st.title("Trends & correlations")
-st.caption(
-    "Suite × browser pass rates, failing-module Pareto, and links between "
-    "test failures and open high-severity defects."
-)
-
-tests_raw = st.session_state.get("tests_df")
-defects_raw = st.session_state.get("defects_df")
-
-if tests_raw is None and defects_raw is None:
-    st.info(
-        "No data loaded yet. Go to **QA Analytics Dashboard** (Home) and "
-        "click **Load demo data** or upload files."
-    )
-    st.stop()
-
-tests = apply_test_filters(tests_raw) if tests_raw is not None else pd.DataFrame()
-defects = (
-    apply_defect_filters(defects_raw, tests_raw)
-    if defects_raw is not None
-    else pd.DataFrame()
-)
-
-if tests.empty and defects.empty:
-    st.warning("Nothing matches the current sidebar filters.")
-    st.stop()
+bootstrap_page("Trends · QA Analytics", icon="📈")
 
 
 def _failure_defect_correlation(
@@ -110,7 +77,13 @@ def _failure_defect_correlation(
     active = d[d["status"].isin(["open", "in-progress"])].copy()
     if active.empty:
         defect_summary = pd.DataFrame(
-            columns=["module", "open_defects", "open_critical", "open_high", "open_high_severity"]
+            columns=[
+                "module",
+                "open_defects",
+                "open_critical",
+                "open_high",
+                "open_high_severity",
+            ]
         )
     else:
         defect_summary = (
@@ -140,13 +113,10 @@ def _failure_defect_correlation(
         return "failures only"
 
     merged["risk_flag"] = merged.apply(_flag, axis=1)
-    return (
-        merged.sort_values(
-            ["open_high_severity", "test_failures", "fail_rate"],
-            ascending=False,
-        )
-        .reset_index(drop=True)
-    )
+    return merged.sort_values(
+        ["open_high_severity", "test_failures", "fail_rate"],
+        ascending=False,
+    ).reset_index(drop=True)
 
 
 def _filtered_report_csv(
@@ -173,95 +143,117 @@ def _filtered_report_csv(
     return "\n".join(parts).encode("utf-8")
 
 
-# ---------------------------------------------------------------------------
-# Heatmap
-# ---------------------------------------------------------------------------
-st.subheader("Pass rate heatmap — test suite × browser")
-if tests.empty:
-    st.warning("No filtered test data for the heatmap.")
-else:
-    st.plotly_chart(browser_pass_rate_heatmap(tests), use_container_width=True)
+def _render() -> None:
+    """Render the Trends page body."""
+    st.title("Trends & correlations")
+    st.caption(
+        "Suite × browser pass rates, failing-module Pareto, and links between "
+        "test failures and open high-severity defects."
+    )
 
-# ---------------------------------------------------------------------------
-# Pareto
-# ---------------------------------------------------------------------------
-st.subheader("Pareto — top failing modules")
-failing_modules = (
-    get_top_failing_modules(tests, top_n=10) if not tests.empty else pd.DataFrame()
-)
-if failing_modules.empty:
-    st.info("No failing modules in the current filter window.")
-else:
-    st.plotly_chart(pareto_chart(failing_modules), use_container_width=True)
-    st.dataframe(failing_modules, use_container_width=True, hide_index=True)
+    tests_raw = st.session_state.get("tests_df")
+    defects_raw = st.session_state.get("defects_df")
 
-# ---------------------------------------------------------------------------
-# Failure ↔ defect correlation
-# ---------------------------------------------------------------------------
-st.subheader("Failure ↔ defect correlation")
-st.markdown(
-    """
+    if tests_raw is None and defects_raw is None:
+        st.info(
+            "No data loaded yet. Go to **QA Analytics Dashboard** (Home) and "
+            "click **Load demo data** or upload files."
+        )
+        return
+
+    tests = apply_test_filters(tests_raw) if tests_raw is not None else pd.DataFrame()
+    defects = (
+        apply_defect_filters(defects_raw, tests_raw)
+        if defects_raw is not None
+        else pd.DataFrame()
+    )
+
+    if tests.empty and defects.empty:
+        st.warning("Nothing matches the current sidebar filters.")
+        return
+
+    st.subheader("Pass rate heatmap — test suite × browser")
+    if tests.empty:
+        st.warning("No filtered test data for the heatmap.")
+    else:
+        st.plotly_chart(browser_pass_rate_heatmap(tests), use_container_width=True)
+
+    st.subheader("Pareto — top failing modules")
+    failing_modules = (
+        get_top_failing_modules(tests, top_n=10) if not tests.empty else pd.DataFrame()
+    )
+    if failing_modules.empty:
+        st.info("No failing modules in the current filter window.")
+    else:
+        st.plotly_chart(pareto_chart(failing_modules), use_container_width=True)
+        st.dataframe(failing_modules, use_container_width=True, hide_index=True)
+
+    st.subheader("Failure ↔ defect correlation")
+    st.markdown(
+        """
 Modules (test suites) are matched to defect **module** names.  
 **High risk** = the suite has test failures **and** at least one **open/in-progress**
 defect with severity **critical** or **high**. That pattern often means product
 issues are still open while automation keeps failing in the same area.
-    """
-)
-
-correlation = _failure_defect_correlation(tests, defects)
-high_risk = (
-    correlation[correlation["risk_flag"].str.startswith("⚠")]
-    if not correlation.empty
-    else correlation
-)
-
-m1, m2, m3 = st.columns(3)
-m1.metric(
-    "Modules with failures",
-    f"{int((correlation['test_failures'] > 0).sum()) if not correlation.empty else 0}",
-)
-m2.metric("High-risk modules", f"{len(high_risk):,}")
-m3.metric(
-    "Open high-severity defects (linked modules)",
-    f"{int(correlation['open_high_severity'].sum()) if not correlation.empty else 0}",
-)
-
-if correlation.empty:
-    st.info("Not enough data to correlate failures with defects.")
-else:
-    st.dataframe(
-        correlation,
-        use_container_width=True,
-        hide_index=True,
-        column_config={
-            "fail_rate": st.column_config.NumberColumn("fail_rate", format="%.2f%%"),
-            "risk_flag": st.column_config.TextColumn("risk_flag", width="large"),
-        },
+        """
     )
-    if not high_risk.empty:
-        st.warning(
-            "High-risk modules (failures + open critical/high defects): "
-            + ", ".join(high_risk["module"].astype(str).tolist())
-        )
+
+    correlation = _failure_defect_correlation(tests, defects)
+    high_risk = (
+        correlation[correlation["risk_flag"].str.startswith("⚠")]
+        if not correlation.empty
+        else correlation
+    )
+
+    m1, m2, m3 = st.columns(3)
+    m1.metric(
+        "Modules with failures",
+        f"{int((correlation['test_failures'] > 0).sum()) if not correlation.empty else 0}",
+    )
+    m2.metric("High-risk modules", f"{len(high_risk):,}")
+    m3.metric(
+        "Open high-severity defects (linked modules)",
+        f"{int(correlation['open_high_severity'].sum()) if not correlation.empty else 0}",
+    )
+
+    if correlation.empty:
+        st.info("Not enough data to correlate failures with defects.")
     else:
-        st.success(
-            "No module currently combines test failures with open critical/high defects."
+        st.dataframe(
+            correlation,
+            use_container_width=True,
+            hide_index=True,
+            column_config={
+                "fail_rate": st.column_config.NumberColumn("fail_rate", format="%.2f%%"),
+                "risk_flag": st.column_config.TextColumn("risk_flag", width="large"),
+            },
         )
+        if not high_risk.empty:
+            st.warning(
+                "High-risk modules (failures + open critical/high defects): "
+                + ", ".join(high_risk["module"].astype(str).tolist())
+            )
+        else:
+            st.success(
+                "No module currently combines test failures with open critical/high defects."
+            )
 
-# ---------------------------------------------------------------------------
-# Download filtered report
-# ---------------------------------------------------------------------------
-st.subheader("Download filtered report")
-st.caption(
-    "Exports the current sidebar-filtered test runs, defects, failing-module "
-    "Pareto table, and correlation summary as one CSV (section headers start with #)."
-)
+    st.subheader("Download filtered report")
+    st.caption(
+        "Exports the current sidebar-filtered test runs, defects, failing-module "
+        "Pareto table, and correlation summary as one CSV (section headers start with #)."
+    )
+    st.download_button(
+        "Download filtered report as CSV",
+        data=_filtered_report_csv(tests, defects, correlation, failing_modules),
+        file_name="qa_filtered_report.csv",
+        mime="text/csv",
+        type="primary",
+        use_container_width=True,
+    )
 
-st.download_button(
-    "Download filtered report as CSV",
-    data=_filtered_report_csv(tests, defects, correlation, failing_modules),
-    file_name="qa_filtered_report.csv",
-    mime="text/csv",
-    type="primary",
-    use_container_width=True,
-)
+
+try:
+    _render()
+except Exception as exc:  # noqa: BLE001
+    show_error(exc, context="Trends page")

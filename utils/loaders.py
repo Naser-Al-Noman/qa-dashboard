@@ -182,7 +182,7 @@ def read_tabular_file(file: FileInput) -> pd.DataFrame:
     Raises
     ------
     ValueError
-        If the extension is unsupported or the file cannot be parsed.
+        If the extension is unsupported, the file is empty, or parsing fails.
     """
     ext = _extension(file)
     label = _file_label(file)
@@ -190,33 +190,80 @@ def read_tabular_file(file: FileInput) -> pd.DataFrame:
     try:
         raw = _raw_bytes(file)
     except OSError as exc:
-        raise ValueError(f"Could not read file '{label}': {exc}") from exc
+        raise ValueError(
+            f"Could not read '{label}'. Check that the file exists and is not locked. "
+            f"Details: {exc}"
+        ) from exc
+    except TypeError as exc:
+        raise ValueError(str(exc)) from exc
+
+    if not raw:
+        raise ValueError(
+            f"'{label}' is empty. Upload a file that contains header + data rows."
+        )
+
+    if not ext:
+        raise ValueError(
+            f"'{label}' has no file extension. Rename it to .csv, .json, .xlsx, or .xls."
+        )
 
     try:
         if ext == ".csv":
-            return pd.read_csv(BytesIO(raw))
-
-        if ext == ".json":
-            text = raw.decode("utf-8-sig")
             try:
-                return pd.read_json(StringIO(text))
+                df = pd.read_csv(BytesIO(raw))
+            except UnicodeDecodeError:
+                df = pd.read_csv(BytesIO(raw), encoding="latin-1")
+        elif ext == ".json":
+            try:
+                text = raw.decode("utf-8-sig")
+            except UnicodeDecodeError as exc:
+                raise ValueError(
+                    f"'{label}' is not valid UTF-8 JSON. Re-export as UTF-8."
+                ) from exc
+            try:
+                df = pd.read_json(StringIO(text))
             except ValueError:
-                # JSON Lines / NDJSON fallback
-                return pd.read_json(StringIO(text), lines=True)
-
-        if ext in {".xlsx", ".xls"}:
-            # openpyxl for xlsx; xlrd may be needed for legacy .xls
+                df = pd.read_json(StringIO(text), lines=True)
+        elif ext in {".xlsx", ".xls"}:
             engine = "openpyxl" if ext == ".xlsx" else None
-            return pd.read_excel(BytesIO(raw), engine=engine)
-
+            try:
+                df = pd.read_excel(BytesIO(raw), engine=engine)
+            except ImportError as exc:
+                raise ValueError(
+                    "Excel support requires the openpyxl package. "
+                    "Run: pip install openpyxl"
+                ) from exc
+        else:
+            raise ValueError(
+                f"Unsupported file type '{ext}' for '{label}'. "
+                "Please upload a .csv, .json, .xlsx, or .xls file."
+            )
+    except ValueError:
+        raise
     except Exception as exc:  # noqa: BLE001 — surface parse errors clearly
         raise ValueError(
-            f"Failed to parse '{label}' as {ext or 'unknown type'}: {exc}"
+            f"Could not parse '{label}' as {ext}. "
+            "The file may be corrupted, password-protected, or not tabular. "
+            f"Details: {exc}"
         ) from exc
 
-    raise ValueError(
-        f"Unsupported file type for '{label}'. "
-        "Please upload a .csv, .json, .xlsx, or .xls file."
+    if df is None or not isinstance(df, pd.DataFrame):
+        raise ValueError(f"'{label}' did not produce a table of rows and columns.")
+
+    if df.empty and len(df.columns) == 0:
+        raise ValueError(
+            f"'{label}' has no columns. Ensure the first row contains headers."
+        )
+
+    return df
+
+
+def friendly_load_error(exc: BaseException, *, kind: str = "file") -> str:
+    """Return a concise message suitable for Streamlit error banners."""
+    detail = str(exc).strip() or type(exc).__name__
+    return (
+        f"Could not load {kind}: {detail} "
+        "See the README schema for required columns and allowed status values."
     )
 
 
@@ -301,11 +348,22 @@ def load_test_results(file: FileInput) -> tuple[pd.DataFrame, list[str]]:
         If the file cannot be read or required columns are missing.
     """
     warnings: list[str] = []
-    df = _normalize_columns(read_tabular_file(file))
+    try:
+        df = _normalize_columns(read_tabular_file(file))
+    except ValueError:
+        raise
+    except Exception as exc:  # noqa: BLE001
+        raise ValueError(friendly_load_error(exc, kind="test results")) from exc
 
     schema_errors = validate_schema(df, TEST_REQUIRED_COLUMNS)
     if schema_errors:
-        raise ValueError("Test results schema validation failed. " + " ".join(schema_errors))
+        raise ValueError(
+            "Test results schema validation failed. "
+            + " ".join(schema_errors)
+            + " Required: "
+            + ", ".join(TEST_REQUIRED_COLUMNS)
+            + "."
+        )
 
     df = _ensure_optional_columns(df, TEST_OPTIONAL_COLUMNS, warnings)
     df = df[TEST_REQUIRED_COLUMNS + TEST_OPTIONAL_COLUMNS].copy()
@@ -377,11 +435,22 @@ def load_defects(file: FileInput) -> tuple[pd.DataFrame, list[str]]:
         If the file cannot be read or required columns are missing.
     """
     warnings: list[str] = []
-    df = _normalize_columns(read_tabular_file(file))
+    try:
+        df = _normalize_columns(read_tabular_file(file))
+    except ValueError:
+        raise
+    except Exception as exc:  # noqa: BLE001
+        raise ValueError(friendly_load_error(exc, kind="defects")) from exc
 
     schema_errors = validate_schema(df, DEFECT_REQUIRED_COLUMNS)
     if schema_errors:
-        raise ValueError("Defects schema validation failed. " + " ".join(schema_errors))
+        raise ValueError(
+            "Defects schema validation failed. "
+            + " ".join(schema_errors)
+            + " Required: "
+            + ", ".join(DEFECT_REQUIRED_COLUMNS)
+            + "."
+        )
 
     df = _ensure_optional_columns(df, DEFECT_OPTIONAL_COLUMNS, warnings, fill_value=pd.NaT)
     df = df[DEFECT_REQUIRED_COLUMNS + DEFECT_OPTIONAL_COLUMNS].copy()

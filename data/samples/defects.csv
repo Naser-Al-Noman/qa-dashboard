@@ -1,0 +1,56 @@
+defect_id,title,severity,priority,status,created_date,closed_date,module
+DEF-0009,[ShopFlow] Catalog: option decide issue,high,P1,in-progress,2026-04-28 05:51:09,,Catalog
+DEF-0007,[FinLedger] Transfers: better discover issue,critical,P1,closed,2026-04-28 13:27:07,2026-05-05 05:27:07,Transfers
+DEF-0021,[MediCare Portal] Appointments: show machine issue,critical,P2,in-progress,2026-04-29 21:15:58,,Appointments
+DEF-0046,[ShopFlow] Cart: development white issue,high,P1,closed,2026-05-02 02:15:00,2026-05-14 14:15:00,Cart
+DEF-0018,[ShopFlow] Cart: husband bill issue,high,P0,in-progress,2026-05-04 16:07:58,,Cart
+DEF-0004,[MediCare Portal] Billing: require sit issue,medium,P1,closed,2026-05-05 14:51:01,2026-05-18 01:51:01,Billing
+DEF-0051,[MediCare Portal] Records: evidence chair issue,low,P2,closed,2026-05-09 12:56:03,2026-05-12 11:56:03,Records
+DEF-0033,[ShopFlow] Checkout: hospital hear issue,low,P2,closed,2026-05-11 11:01:51,2026-05-12 14:01:51,Checkout
+DEF-0034,[ShopFlow] Catalog: religious example issue,medium,P3,closed,2026-05-16 00:12:22,2026-05-22 22:12:22,Catalog
+DEF-0003,[FinLedger] Auth: chair since issue,high,P3,closed,2026-05-17 08:08:17,2026-05-23 18:08:17,Auth
+DEF-0008,[FinLedger] Reports: mouth play issue,low,P1,in-progress,2026-05-18 06:09:31,,Reports
+DEF-0030,[MediCare Portal] Billing: trial blood issue,critical,P2,in-progress,2026-05-18 06:27:41,,Billing
+DEF-0052,[FinLedger] Accounts: size option issue,high,P3,in-progress,2026-05-19 14:42:11,,Accounts
+DEF-0016,[FinLedger] Reports: clearly dinner issue,medium,P2,in-progress,2026-05-22 15:30:23,,Reports
+DEF-0029,[FinLedger] Transfers: base top issue,medium,P2,open,2026-05-23 18:20:32,,Transfers
+DEF-0024,[MediCare Portal] Billing: themselves production issue,high,P3,closed,2026-05-24 03:10:27,2026-05-25 13:10:27,Billing
+DEF-0048,[ShopFlow] Catalog: difference reality issue,medium,P3,closed,2026-05-26 05:16:19,2026-05-30 17:16:19,Catalog
+DEF-0045,[MediCare Portal] Records: institution executive issue,critical,P2,open,2026-05-26 07:04:41,,Records
+DEF-0042,[FinLedger] Auth: threat special issue,high,P0,in-progress,2026-05-27 03:39:10,,Auth
+DEF-0019,[FinLedger] Auth: throw guy issue,medium,P2,closed,2026-05-30 12:30:07,2026-06-03 18:30:07,Auth
+DEF-0026,[FinLedger] Auth: participant dark issue,high,P1,closed,2026-05-30 18:41:24,2026-06-06 04:41:24,Auth
+DEF-0023,[MediCare Portal] Appointments: bar old issue,high,P2,in-progress,2026-06-01 10:04:06,,Appointments
+DEF-0031,[MediCare Portal] Auth: fall long issue,high,P2,open,2026-06-01 13:46:39,,Auth
+DEF-0012,[ShopFlow] Cart: perform fall issue,medium,P1,open,2026-06-08 06:45:08,,Cart
+DEF-0039,[MediCare Portal] Auth: hundred expect issue,high,P0,closed,2026-06-09 13:09:49,2026-06-22 09:09:49,Auth
+DEF-0049,[MediCare Portal] Appointments: individual usually issue,critical,P1,open,2026-06-13 03:18:45,,Appointments
+DEF-0022,[FinLedger] Accounts: capital win issue,medium,P1,closed,2026-06-16 17:31:17,2026-06-23 18:31:17,Accounts
+DEF-0053,[FinLedger] Transfers: everyone skin issue,medium,P2,closed,2026-06-16 23:55:39,2026-06-24 08:55:39,Transfers
+DEF-0011,[FinLedger] Accounts: kind discussion issue,low,P3,in-progress,2026-06-17 13:49:30,,Accounts
+DEF-0041,[ShopFlow] Cart: discuss reveal issue,high,P2,open,2026-06-18 17:48:23,,Cart
+DEF-0047,[ShopFlow] Auth: under serious issue,medium,P3,open,2026-06-19 17:38:41,,Auth
+DEF-0055,[FinLedger] Accounts: inside high issue,high,P2,closed,2026-06-21 07:44:58,2026-06-23 19:44:58,Accounts
+DEF-0054,[ShopFlow] Cart: later water issue,critical,P2,closed,2026-06-21 10:12:12,2026-07-04 09:12:12,Cart
+DEF-0006,[FinLedger] Accounts: knowledge almost issue,low,P3,open,2026-06-21 23:58:00,,Accounts
+DEF-0020,[FinLedger] Reports: everything surface issue,medium,P3,open,2026-06-23 06:48:11,,Reports
+DEF-0025,[MediCare Portal] Auth: value training issue,high,P3,closed,2026-06-24 17:16:29,2026-06-28 13:16:29,Auth
+DEF-0037,[ShopFlow] Catalog: Congress none issue,high,P2,in-progress,2026-06-26 07:37:33,,Catalog
+DEF-0032,[ShopFlow] Catalog: they his issue,medium,P2,closed,2026-06-26 09:16:17,2026-07-09 08:16:17,Catalog
+DEF-0001,[ShopFlow] Cart: brother ago issue,medium,P3,closed,2026-06-26 17:59:30,2026-06-29 17:59:30,Cart
+DEF-0036,[MediCare Portal] Records: away politics issue,low,P3,open,2026-06-27 14:03:04,,Records
+DEF-0028,[ShopFlow] Catalog: drive spring issue,medium,P2,in-progress,2026-06-28 20:52:28,,Catalog
+DEF-0015,[ShopFlow] Checkout: knowledge grow issue,medium,P2,closed,2026-07-02 10:48:07,2026-07-03 18:48:07,Checkout
+DEF-0035,[MediCare Portal] Records: write result issue,high,P2,closed,2026-07-02 19:22:45,2026-07-14 17:22:45,Records
+DEF-0027,[ShopFlow] Catalog: available answer issue,high,P1,closed,2026-07-03 01:47:26,2026-07-10 19:47:26,Catalog
+DEF-0010,[ShopFlow] Checkout: rate science issue,medium,P2,closed,2026-07-04 04:27:57,2026-07-13 01:27:57,Checkout
+DEF-0038,[MediCare Portal] Appointments: election common issue,medium,P3,open,2026-07-05 11:00:28,,Appointments
+DEF-0002,[ShopFlow] Auth: face election issue,medium,P3,open,2026-07-06 15:57:26,,Auth
+DEF-0014,[ShopFlow] Cart: sure collection issue,medium,P2,open,2026-07-08 08:10:07,,Cart
+DEF-0017,[MediCare Portal] Auth: great blue issue,medium,P1,in-progress,2026-07-08 19:05:22,,Auth
+DEF-0043,[FinLedger] Auth: arrive drop issue,low,P2,closed,2026-07-10 00:13:49,2026-07-13 07:13:49,Auth
+DEF-0013,[ShopFlow] Cart: true according issue,low,P2,closed,2026-07-13 06:07:44,2026-07-13 14:07:44,Cart
+DEF-0044,[FinLedger] Accounts: almost support issue,high,P3,closed,2026-07-14 10:57:29,2026-07-21 19:57:29,Accounts
+DEF-0005,[ShopFlow] Cart: offer begin issue,medium,P3,in-progress,2026-07-21 06:56:54,,Cart
+DEF-0050,[ShopFlow] Auth: question low issue,high,P2,closed,2026-07-23 11:04:11,2026-07-24 16:01:10,Auth
+DEF-0040,[MediCare Portal] Records: push rise issue,low,P3,in-progress,2026-07-24 12:20:13,,Records
